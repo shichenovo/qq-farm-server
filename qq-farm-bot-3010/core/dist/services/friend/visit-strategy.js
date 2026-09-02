@@ -561,7 +561,24 @@ async function doFriendOperation(friendGid, opType) {
             if (!status.stealable.length)
                 return { ok: true, opType, count: 0, message: '没有可偷取土地' };
             const target = status.stealable;
-            count = await runBatchWithFallback(target, (ids) => stealHarvest(gid, ids), (ids) => stealHarvest(gid, ids));
+            // 内联处理：stealHarvest 被摘走类软失败不再抛错，需按返回码判定真实收获数，避免误报“偷到”
+            const isStealSoftFail = (reply) => !!(reply && (reply.code === 1001040 || reply.code === 1001057));
+            try {
+                const reply = await stealHarvest(gid, target);
+                if (!isStealSoftFail(reply))
+                    count = target.length;
+            }
+            catch {
+                for (const landId of target) {
+                    try {
+                        const reply = await stealHarvest(gid, [landId]);
+                        if (!isStealSoftFail(reply))
+                            count++;
+                    }
+                    catch { /* ignore */ }
+                    await sleep(100);
+                }
+            }
             if (count > 0) {
                 recordOperation('steal', count);
                 // 手动偷取成功后立即尝试出售一次果实
@@ -577,7 +594,7 @@ async function doFriendOperation(friendGid, opType) {
                     });
                 }
             }
-            return { ok: true, opType, count, message: `偷取完成 ${count} 块` };
+            return { ok: true, opType, count, message: count > 0 ? `偷取完成 ${count} 块` : '没有可偷取土地(可能已被摘走)' };
         }
         if (opType === 'farming' || opType === 'water' || opType === 'weed' || opType === 'bug') {
             const landIds = opType === 'farming'
@@ -754,24 +771,30 @@ async function visitFriend(friend, totalActions, myGid, accountId, options = {})
         let ok = 0;
         const stolenPlants = [];
         // 尝试批量偷取
+        // 1001040=果实已被摘走 / 1001057=无成熟果实：属“没偷到”的软失败，不计成功、不重试、不刷屏
+        const isStealSoftFail = (reply) => !!(reply && (reply.code === 1001040 || reply.code === 1001057));
         try {
-            await stealHarvest(gid, targetLands);
-            ok = targetLands.length;
-            targetLands.forEach((id) => {
-                const info = status.stealableInfo.find((x) => x.landId === id);
-                if (info)
-                    stolenPlants.push(info.name);
-            });
-        }
-        catch {
-            // 批量失败，降级为单个
-            for (const landId of targetLands) {
-                try {
-                    await stealHarvest(gid, [landId]);
-                    ok++;
-                    const info = status.stealableInfo.find((x) => x.landId === landId);
+            const reply = await stealHarvest(gid, targetLands);
+            if (!isStealSoftFail(reply)) {
+                ok = targetLands.length;
+                targetLands.forEach((id) => {
+                    const info = status.stealableInfo.find((x) => x.landId === id);
                     if (info)
                         stolenPlants.push(info.name);
+                });
+            }
+        }
+        catch {
+            // 其他错误才降级为单个重试
+            for (const landId of targetLands) {
+                try {
+                    const reply = await stealHarvest(gid, [landId]);
+                    if (!isStealSoftFail(reply)) {
+                        ok++;
+                        const info = status.stealableInfo.find((x) => x.landId === landId);
+                        if (info)
+                            stolenPlants.push(info.name);
+                    }
                 }
                 catch { /* ignore */ }
                 await randomDelay(500, 800);
