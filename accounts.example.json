@@ -1,0 +1,31 @@
+{
+  "accounts": [
+    {
+      "id": "1",
+      "name": "账号1",
+      "code": "REPLACE_WITH_YOUR_ACCOUNT_CODE",
+      "platform": "qq",
+      "uin": "REPLACE_WITH_YOUR_QQ_UIN",
+      "qq": "REPLACE_WITH_YOUR_QQ_UIN",
+      "avatar": "",
+      "createdAt": 0,
+      "updatedAt": 0,
+      "nick": "",
+      "loginType": "napcat_open_auth"
+    },
+    {
+      "id": "3",
+      "name": "账号2",
+      "code": "REPLACE_WITH_YOUR_ACCOUNT_CODE",
+      "platform": "wx",
+      "avatar": "",
+      "createdAt": 0,
+      "updatedAt": 0,
+      "nick": "",
+      "loginType": "yyb",
+      "yybOpenid": "REPLACE_WITH_YOUR_YYB_OPENID",
+      "wxid": "REPLACE_WITH_YOUR_WXID"
+    }
+  ],
+  "nextId": 4
+}

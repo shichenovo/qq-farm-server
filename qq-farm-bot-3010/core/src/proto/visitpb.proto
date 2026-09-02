@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package gamepb.visitpb;
+
+import "plantpb.proto";
+import "userpb.proto";
+import "weatherpb.proto";
+
+// ============ 访问好友农场服务 ============
+service VisitService {
+    rpc Enter(EnterRequest) returns (EnterReply);
+    rpc Leave(LeaveRequest) returns (LeaveReply);
+}
+
+// ============ 进入原因枚举 ============
+enum EnterReason {
+    ENTER_REASON_UNKNOWN = 0;
+    ENTER_REASON_BUBBLE = 1;
+    ENTER_REASON_FRIEND = 2;
+    ENTER_REASON_INTERACT = 3;
+}
+
+// ============ 进入好友农场 ============
+message EnterRequest {
+    int64 host_gid = 1;      // 好友的GID
+    int32 reason = 2;        // EnterReason 进入原因
+}
+
+message BriefDogInfo {
+    int64 dog_id = 1;      // 好友当前上场的狗 ID；缺省表示没有上场狗
+}
+
+message EnterReply {
+    gamepb.userpb.BasicInfo basic = 1;              // 好友基本信息
+    repeated gamepb.plantpb.LandInfo lands = 2;     // 好友的所有土地
+    BriefDogInfo brief_dog_info = 3;                // 好友当前上场的狗
+    // field 4: nudge_info (不需要)
+    gamepb.weatherpb.WeatherStatus weather = 13;    // 当前好友农场的现场天气（最新版权威来源）
+}
+
+// ============ 离开好友农场 ============
+message LeaveRequest {
+    int64 host_gid = 1;      // 好友的GID
+}
+
+message LeaveReply {
+    // 空消息
+}

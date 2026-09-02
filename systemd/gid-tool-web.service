@@ -1,0 +1,26 @@
+[Unit]
+Description=好友 GID 提取工具（8099）
+After=network.target
+Wants=qq-farm-bot-3010.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/gid-tool-web
+ExecStart=/usr/bin/node /opt/gid-tool-web/server.js
+Restart=on-failure
+RestartSec=3
+Environment=PORT=8099
+Environment=HOST=0.0.0.0
+Environment=NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+# 农场 bot 只读 admin 凭据（用于“获取已登录主账号好友”的备用通道）
+Environment=FARMBOT_ADMIN_URL=http://127.0.0.1:3010
+Environment=FARMBOT_ADMIN_USER=admin
+Environment=FARMBOT_ADMIN_PASSWORD=admin
+Environment=FARM_BOT_DIST=/opt/qq-farm-bot-3010/core/dist
+# 应用宝(YYB)换码 token：一键部署时由 setup.sh 注入；手动部署请改成你自己的
+Environment=YYB_API_KEY=REPLACE_WITH_YOUR_YYB_TOKEN
+# Environment=NAPCAT_CODE_WEB_PASSWORD=你的强密码
+
+[Install]
+WantedBy=multi-user.target

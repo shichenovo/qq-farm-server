@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package gamepb.mysteryshoppb;
+
+service MysteryShopService {
+  rpc GetActiveNPC(GetActiveNPCRequest) returns (GetActiveNPCReply);
+  rpc Buy(BuyRequest) returns (BuyReply);
+}
+
+message GetActiveNPCRequest {}
+
+message BuyRequest {
+  int64 npc_id = 1;
+}
+
+// A successful purchase is acknowledged by ItemNotify rather than an RPC body.
+message BuyReply {}
+
+// The active merchant offer embedded in GetActiveNPCReply.
+message ActiveNPC {
+  int64 npc_id = 1;
+  int64 reward_item_id = 2;
+  int32 unknown_field_3 = 3;
+  int32 reward_count = 4;
+  int64 currency_item_id = 5;
+  int64 price = 6;             // Discounted unit price; multiply by reward_count for the order total.
+  int32 discount_percent = 7;
+  reserved 8;
+  int64 original_price = 9;    // Original unit price; multiply by reward_count for the order total.
+}
+
+message GetActiveNPCReply {
+  bool is_active = 1;
+  ActiveNPC npc = 2;
+  int64 active_time = 3;
+  int64 expire_time = 4;
+}

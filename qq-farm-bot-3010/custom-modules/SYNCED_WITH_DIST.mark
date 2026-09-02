@@ -1,0 +1,13 @@
+本目录(custom-modules)是 core/dist 的【镜像】，不是运行时真源。
+运行时只加载 core/dist/*（见 core/client.js），custom-modules 不参与加载。
+
+2026-09-02 起：本目录已与 core/dist 逐文件同步一致。
+此后若执行「叠加部署」(把 custom-modules/* 复制到 core/dist/*)，结果为空操作，不会回退任何改动。
+
+规则：
+1. 改逻辑请直接改 core/dist/*，然后反向同步回这里：
+   cp core/dist/runtime/data-provider.js custom-modules/runtime/data-provider.js
+   cp core/dist/runtime/worker-manager.js custom-modules/runtime/worker-manager.js
+   （其余文件若也改了，同理按相同相对路径同步）
+2. 上游更新请用 3-way merge（见仓库 docs/UPDATE-GUIDE.md），不要整目录覆盖。
+3. 任何部署后跑 scripts/verify-deploy.sh 校验 10 个定制标记是否齐全。

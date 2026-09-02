@@ -1,0 +1,17 @@
+[Unit]
+Description=YYB Go WeChat code-exchange service for QQ Farm Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/yyb-go
+Environment=YYB_API_TOKEN=REPLACE_WITH_YOUR_YYB_TOKEN
+ExecStart=/opt/yyb-go/yyb-go -host 127.0.0.1 -port 8450 -resource-root /opt/yyb-go/resource
+Restart=always
+RestartSec=3
+MemoryMax=256M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

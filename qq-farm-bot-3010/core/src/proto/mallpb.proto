@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package gamepb.mallpb;
+
+import "corepb.proto";
+
+service MallService {
+  rpc GetMallListBySlotType(GetMallListBySlotTypeRequest) returns (GetMallListBySlotTypeResponse);
+  rpc Purchase(PurchaseRequest) returns (PurchaseResponse);
+  rpc GetMonthCardInfos(GetMonthCardInfosRequest) returns (GetMonthCardInfosReply);
+  rpc ClaimMonthCardReward(ClaimMonthCardRewardRequest) returns (ClaimMonthCardRewardReply);
+}
+
+// Requests one mall tab. The client always sends sub_slot_type, including zero.
+message GetMallListBySlotTypeRequest {
+  int32 slot_type = 1;
+  int32 sub_slot_type = 2;
+}
+
+// Purchase limits are returned both with a product and after a purchase.
+message PurchaseLimit {
+  int32 limit_type = 1;    // 1=daily, 4=activity-period in the captured products.
+  int32 bought_count = 2;  // Omitted when zero in a mall-list response.
+  int32 limit_count = 3;
+}
+
+message MallGoods {
+  int32 goods_id = 1;
+  string name = 2;
+  int32 goods_type = 3;
+  repeated corepb.Item reward_items = 4;
+  corepb.Item price = 5;       // Item ID is the currency; count is the unit price.
+  bool is_free = 6;
+  PurchaseLimit purchase_limit = 7;
+  bool is_limited = 8;
+  string discount_text = 9;   // Display text such as "7.4折".
+  bool is_discounted = 10;
+  int64 discount_end_time = 11;
+  bool is_available = 12;
+}
+
+message GetMallListBySlotTypeResponse {
+  repeated MallGoods goods_list = 1;
+  int64 refresh_countdown = 2; // Seconds until the mall list refreshes.
+}
+
+message PurchaseRequest {
+  int32 goods_id = 1;
+  int32 count = 2;
+}
+
+message PurchaseResponse {
+  int32 goods_id = 1;
+  int32 count = 2;
+  repeated corepb.Item reward_items = 3;
+  PurchaseLimit purchase_limit = 5;
+}
+
+message GetMonthCardInfosRequest {}
+
+message MonthCardInfo {
+  int32 goods_id = 1;
+  corepb.Item reward = 2;
+  bool can_claim = 3;
+}
+
+message GetMonthCardInfosReply {
+  repeated MonthCardInfo infos = 1;
+}
+
+message ClaimMonthCardRewardRequest {
+  int32 goods_id = 1;
+}
+
+message ClaimMonthCardRewardReply {
+  repeated corepb.Item items = 1;
+}
+
+message ProductsHasChangedNotify {
+  int32 slot_type = 1;
+}
+
+// Empty in the captured purchase flow. Its presence tells the client to refresh
+// any views that depend on the player's current mall needs.
+message NeedNotify {
+  int32 need_type = 1;
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=YYB WeChat login_buffer keepalive timer (every 30 min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=yyb-keepalive.service
+
+[Install]
+WantedBy=timers.target

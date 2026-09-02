@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package gamepb.solartermspb;
+
+// SolarTermsService.GetSolarTerms 抓包中已确认的只读字段。
+message SolarTermReward {
+    int64 item_id = 1;
+    int64 count = 2;
+}
+
+message SolarTermInfo {
+    int64 term_id = 1;
+    int64 status = 2;
+    int64 begin_time = 3;
+    int64 end_time = 4;
+    repeated SolarTermReward rewards = 5;
+    bytes name = 6;
+}
+
+message SolarTermsConfig {
+    int64 config_id = 1;
+    int64 activity_id = 2;
+    bytes rules_json = 3;
+    bytes field_4 = 4;
+}
+
+message GetSolarTermsRequest {}
+
+message GetSolarTermsRedDotRequest {}
+
+message GetSolarTermsRedDotReply {}
+
+message GetSolarTermsReply {
+    repeated SolarTermInfo terms = 1;
+    int64 server_time = 2;
+    SolarTermsConfig current_config = 3;
+    repeated SolarTermsConfig configs = 4;
+}
+
+message ClaimSolarTermsRequest {
+    int64 term_id = 1;
+}
+
+message ClaimSolarTermsReply {
+    repeated SolarTermReward rewards = 1;
+    SolarTermInfo term = 2;
+}

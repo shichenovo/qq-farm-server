@@ -1,0 +1,14 @@
+[Unit]
+Description=QQ Farm Download Service (8080)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/downloads
+ExecStart=/usr/bin/python3 -m http.server 8080 --bind 0.0.0.0 --directory /opt/downloads
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

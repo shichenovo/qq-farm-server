@@ -1,0 +1,20 @@
+[Unit]
+Description=NapCat 扫码取 Code 网页（独立代理，不影响农场bot/yyb-go）
+After=network.target
+Wants=qq-farm-bot-3010.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/napcat-code-web
+ExecStart=/usr/bin/node /opt/napcat-code-web/server.js
+Restart=on-failure
+RestartSec=3
+# 监听端口、bridge socket 路径。PASSWORD 留空=不校验（设上即开启访问密码）。
+Environment=PORT=8088
+Environment=HOST=0.0.0.0
+Environment=NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+# Environment=NAPCAT_CODE_WEB_PASSWORD=你的强密码
+
+[Install]
+WantedBy=multi-user.target

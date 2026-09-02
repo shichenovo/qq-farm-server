@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package gamepb.illustratedpb;
+
+import "corepb.proto";
+
+message GetIllustratedListV2Request {
+    bool refresh = 1;
+    int32 type = 2;
+}
+
+message IllustratedItem {
+    int64 seed_id = 1;
+    // Reward tier (2=40, 3=80, 4=200 in the captured responses), not the
+    // golden/activity/decoration fruit group.
+    int32 reward_category = 2;
+    bool unlocked = 3;
+    int32 progress = 4;
+    int32 crop_category = 5;
+    IllustratedReward reward = 6;
+    bool is_new = 7;
+    repeated IllustratedAttribute attributes = 8;
+}
+
+message GetIllustratedListV2Reply {
+    repeated IllustratedItem items = 1;
+    int64 progress = 2;
+    int32 level = 3;
+    IllustratedReward reward = 4;
+    bytes reward_detail = 5;
+    int32 type = 6;
+    int64 next_level_progress = 7;
+    bool red_dot = 9;
+    repeated IllustratedReward attribute_bonuses = 10;
+    IllustratedReward current_bonus = 11;
+}
+
+message IllustratedReward {
+    int64 item_id = 1;
+    int64 count = 2;
+}
+
+message IllustratedAttribute {
+    int32 type = 1;
+    int64 param = 2;
+    int64 value = 3;
+}
+
+message GetIllustratedLevelListV2Request {
+    int32 type = 1;
+}
+
+message IllustratedLevel {
+    int32 level = 1;
+    int64 progress = 2;
+    repeated IllustratedReward rewards = 3;
+    bool claimed = 5;
+}
+
+message GetIllustratedLevelListV2Reply {
+    int32 level = 1;
+    int64 progress = 2;
+    repeated IllustratedLevel levels = 3;
+}
+
+message ClaimAllRewardsV2Request {
+    bool only_claimable = 1;
+}
+
+message ClaimAllRewardsV2Reply {
+    repeated corepb.Item items = 1;
+    repeated corepb.Item bonus_items = 4;
+}
+
+message IllustratedRewardRedDotNotifyV2 {}
+
+// ============ 清除新解锁水果标记 V2 ============
+message ClearNewUnlockedFruitsV2Request {
+    bytes seed_id = 1;
+}
+
+message ClearNewUnlockedFruitsV2Reply {
+    bytes seed_id = 1;
+}

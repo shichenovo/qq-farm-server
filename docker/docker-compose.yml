@@ -1,0 +1,26 @@
+# NapCat 容器编排（QQ 登录必需）
+# 构建: docker compose build
+# 启动: docker compose up -d
+# 注意: bridge socket 目录 /run/qqfarm-napcat-bridge 必须挂载到宿主机，
+#        bot(3010) / napcat-code-web(8088) / gid-tool-web(8099) 都靠它通信。
+
+services:
+  napcat-farm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: qq-farm-napcat:farm
+    container_name: napcat-farm
+    restart: unless-stopped
+    ports:
+      - "6099:6099"
+      - "9700:9700"
+    volumes:
+      - qq-farm-napcat-data:/app/napcat-data
+      - /run/qqfarm-napcat-bridge:/run/qqfarm-napcat-bridge
+    environment:
+      - TZ=Asia/Shanghai
+      - DISPLAY=:1
+
+volumes:
+  qq-farm-napcat-data:

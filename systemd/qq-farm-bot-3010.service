@@ -1,0 +1,21 @@
+[Unit]
+Description=QQ Farm Bot (qq-farm-bot-3010)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/qq-farm-bot-3010/core
+ExecStart=/usr/bin/node /opt/qq-farm-bot-3010/core/client.js
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=TZ=Asia/Shanghai
+Environment=ADMIN_PORT=3010
+Environment=NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+Environment=YYB_API_URL=http://127.0.0.1:8450
+Environment=YYB_API_KEY=REPLACE_WITH_YOUR_YYB_TOKEN
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

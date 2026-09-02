@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>好友 GID 提取工具 · 8099</title>
+<style>
+  :root { --bg:#0b1020; --card:#131a2e; --line:#233049; --cyan:#38e1c8; --muted:#8b97ad; --txt:#e6edf6; --red:#f87171; --green:#34d399; --blue:#60a5fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:linear-gradient(160deg,#0b1020,#0e1426); color:var(--txt); font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; padding:18px; max-width:780px; margin:0 auto; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2 { font-size:15px; margin:0 0 12px; color:var(--cyan); }
+  .btn { border:0; border-radius:10px; padding:10px 14px; font-size:14px; cursor:pointer; font-weight:600; }
+  .btn.primary { background:var(--cyan); color:#06231f; }
+  .btn.ghost { background:transparent; border:1px solid var(--line); color:var(--txt); }
+  .btn.warn { background:#f59e0b; color:#2a1a00; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  label.small { color:var(--muted); font-size:12px; display:block; margin:10px 0 4px; }
+  .field { width:100%; background:#0c1322; border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; resize:vertical; }
+  .field:focus { outline:none; border-color:var(--cyan); }
+  #gidText { min-height:130px; }
+  .opt { display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:12px; color:var(--muted); font-size:12px; }
+  .opt label { cursor:pointer; user-select:none; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#1c2740; color:var(--cyan); }
+  .stat { color:var(--muted); font-size:12px; margin-top:10px; line-height:1.7; }
+  .stat b { color:var(--txt); }
+  .stat .rm { color:var(--red); }
+  .list { max-height:260px; overflow-y:auto; margin-top:10px; border-radius:10px; border:1px solid var(--line); }
+  .list .item { display:flex; gap:10px; align-items:center; padding:7px 10px; border-bottom:1px solid #1a2336; }
+  .list .item:last-child { border-bottom:0; }
+  .list .g { font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--cyan); flex:0 0 auto; }
+  .list .n { flex:1; color:#cbd5e1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .list .l { color:var(--muted); font-size:12px; flex:0 0 auto; }
+  .list .empty { padding:16px; text-align:center; color:var(--muted); }
+  .list .lv1 { background:rgba(248,113,113,.08); }
+  .lv-range { margin-top:10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+  .lv-range .small { margin:0; }
+  .lv-input { width:60px; padding:4px 6px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); text-align:center; }
+  .lv-range .muted { font-size:11px; opacity:.7; }
+  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#0c1322; border:1px solid var(--line); padding:10px 16px; border-radius:10px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .tip { color:var(--muted); font-size:12px; margin-top:8px; line-height:1.6; }
+  .accent { color:var(--blue); }
+  .acc-input { width:120px; background:#0c1322; border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:6px 8px; font-size:13px; }
+</style>
+</head>
+<body>
+  <h1>好友 GID 提取工具</h1>
+  <div class="sub">端口 8099 · 直接从<b>已登录的农场 bot 账号</b>读取好友 GID（只读缓存、不连网关、不扫码）· 默认过滤 Lv1 · 逗号分隔 · 可全选复制</div>
+
+  <div class="card">
+    <h2>① 取已登录账号的好友 GID</h2>
+    <p class="tip">数据来源是 bot 自己连着游戏网关、一直在跑好友巡查所维护的好友缓存（<span class="accent">/api/friends/cache</span>）。无需扫码、不发任何额外请求，秒回。</p>
+    <label class="small" for="accountId">账号 ID（默认 1 = 账号1 / QQ）：</label>
+    <input id="accountId" class="acc-input" type="text" value="1" />
+
+    <div class="opt">
+      <label><input type="checkbox" id="hideLv1" checked /> 过滤 Lv1 好友（默认开）</label>
+      <label><input type="checkbox" id="copyComma" checked /> 结果用逗号分隔</label>
+      <div class="lv-range">
+        <label class="small">等级过滤：</label>
+        <span>保留 ≥ Lv</span><input id="minKeepLevel" class="lv-input" type="number" min="0" step="1" placeholder="0" />
+        <span>，过滤 ≤ Lv</span><input id="maxFilterLevel" class="lv-input" type="number" min="0" step="1" placeholder="1" />
+        <span class="muted">（留空=默认：保留全部下限，过滤 Lv1）</span>
+      </div>
+    </div>
+
+    <div id="wxQrBox" style="display:none;margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:12px;text-align:center;">
+      <div style="font-weight:600;margin-bottom:10px;">微信(沉稳🛫)登录二维码</div>
+      <img id="wxQrImg" style="width:260px;height:260px;border:1px solid #eee;border-radius:8px;" />
+      <div id="wxQrTip" style="margin-top:10px;font-size:12px;color:var(--muted);">用微信扫此码，扫完在手机点确认即可自动登录</div>
+      <div id="wxQrState" style="margin-top:8px;font-size:13px;color:var(--green);min-height:18px;"></div>
+    </div>
+
+    <div class="row" style="margin-top:14px;">
+      <button class="btn primary" id="btnFetch">获取好友 GID</button>
+      <button class="btn ghost" id="btnSelectAll">全选复制</button>
+      <button class="btn ghost" id="btnReplace">替换 bot 好友 GID</button>
+      <button class="btn warn" id="btnUnlock">恢复自动同步</button>
+      <button class="btn primary" id="btnWxQr">获取微信登录二维码</button>
+      <span class="badge" id="status">待操作</span>
+    </div>
+
+    <div class="stat" id="stat"></div>
+
+    <label class="small" for="gidText">提取结果（逗号分隔，可全选复制）：</label>
+    <textarea id="gidText" class="field" readonly placeholder="点击「获取好友 GID」后，这里显示逗号分隔的全部 GID"></textarea>
+
+    <div class="list" id="gidList"><div class="empty">尚未提取</div></div>
+    <p class="tip">Lv1 好友默认剔除（农场里多为不活跃/小号，无偷菜价值）；想保留就取消勾选。逗号串可直接粘进农场 bot 的好友配置。</p>
+    <p class="tip">「替换 bot 好友 GID」会把上方过滤后的列表<b>整体覆盖</b>进 bot 的 knownFriendGids 配置（账号按上面的账号 ID），会同步到正在运行的 bot。确认前请核对数量。</p>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let lastResult = null;
+let wxPollTimer = null;
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function setStatus(s, ok) {
+  const b = $('status'); b.textContent = s;
+  b.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--red)' : 'var(--cyan)';
+}
+function isLv1(f) { return Number(f.level || 0) === 1; }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+async function fetchGids() {
+  const accountId = ($('accountId').value || '1').trim();
+  const hideLv1 = $('hideLv1').checked;
+  const comma = $('copyComma').checked;
+  const minKeepLevel = ($('minKeepLevel').value || '').trim();
+  const maxFilterLevel = ($('maxFilterLevel').value || '').trim();
+  const q = new URLSearchParams();
+  q.set('accountId', accountId);
+  if (minKeepLevel !== '') q.set('minKeepLevel', minKeepLevel);
+  if (maxFilterLevel !== '') q.set('maxFilterLevel', maxFilterLevel);
+  $('btnFetch').disabled = true;
+  setStatus('读取中…', null);
+  try {
+    const res = await fetch('/api/friends?' + q.toString(), { method: 'GET' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setStatus('失败：' + (data.error || res.status), false);
+      $('stat').innerHTML = '<span class="rm">出错：' + escapeHtml(data.error || '未知错误') + '</span>';
+      return;
+    }
+    lastResult = data;
+    renderResult(data, comma);
+    const removed = data.lv1Removed || 0;
+    const mk = (data.minKeepLevel !== undefined && data.minKeepLevel !== null) ? data.minKeepLevel : 0;
+    const mf = (data.maxFilterLevel !== undefined && data.maxFilterLevel !== null) ? data.maxFilterLevel : 1;
+    $('stat').innerHTML =
+      '账号 ' + escapeHtml(data.accountId) + ' · 结果：<b>' + data.count + '</b> 个好友' +
+      ' · 等级区间 [Lv' + mk + ' , >Lv' + mf + ']' +
+      (removed ? ' · 已过滤 <span class="rm"> ' + removed + ' </span>个' : '');
+    setStatus('完成', true);
+    toast('已获取 ' + data.count + ' 个 GID');
+  } catch (e) {
+    setStatus('网络错误', false);
+    $('stat').innerHTML = '<span class="rm">请求异常：' + escapeHtml(e.message) + '</span>';
+  } finally {
+    $('btnFetch').disabled = false;
+  }
+}
+
+function renderResult(data, comma) {
+  const text = data.gidsText || (data.friends || []).map(f => String(f.gid)).join(comma ? ',' : '\n');
+  $('gidText').value = text;
+  const list = $('gidList');
+  const friends = data.friends || [];
+  if (!friends.length) { list.innerHTML = '<div class="empty">该账号没有好友缓存（可能尚未巡查过，或账号未运行）</div>'; return; }
+  list.innerHTML = friends.map(f => {
+    const lv1 = isLv1(f);
+    return '<div class="item ' + (lv1 ? 'lv1' : '') + '"><span class="g">' + escapeHtml(String(f.gid)) +
+      '</span><span class="n">' + escapeHtml(f.name || '(无名)') + '</span>' +
+      '<span class="l">Lv' + escapeHtml(String(f.level || 0)) + '</span></div>';
+  }).join('');
+}
+
+function selectAllCopy() {
+  const ta = $('gidText');
+  if (!ta.value.trim()) { toast('还没有结果'); return; }
+  ta.focus(); ta.select();
+  const n = ta.value.split(',').filter(Boolean).length;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(() => toast('已复制 ' + n + ' 个 GID')).catch(() => fallbackCopy());
+    } else fallbackCopy();
+  } catch (e) { fallbackCopy(); }
+}
+function fallbackCopy() {
+  try { document.execCommand('copy'); toast('已复制'); }
+  catch (e) { toast('复制失败，请手动 Ctrl/⌘+C'); }
+}
+
+async function unlockFriends() {
+  const accountId = ($('accountId').value || '1').trim();
+  if (!confirm('确定恢复账号 ' + accountId + ' 的「已知好友 GID 自动同步」？\n恢复后 bot 会把新发现/被过滤(Lv1)的好友重新合并进列表。')) {
+    return;
+  }
+  $('btnUnlock').disabled = true;
+  setStatus('解锁中…', null);
+  try {
+    const res = await fetch('/api/friends/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setStatus('解锁失败：' + (data.error || res.status), false);
+      toast('解锁失败：' + (data.error || res.status));
+      return;
+    }
+    setStatus('已恢复自动同步', true);
+    toast('已恢复自动同步（锁=' + data.manualLock + '）');
+  } catch (e) {
+    setStatus('网络错误', false);
+    toast('请求异常：' + e.message);
+  } finally {
+    $('btnUnlock').disabled = false;
+  }
+}
+
+async function replaceFriends() {
+  if (!lastResult || !Array.isArray(lastResult.friends) || lastResult.friends.length === 0) {
+    toast('请先「获取好友 GID」'); return;
+  }
+  const accountId = ($('accountId').value || '1').trim();
+  const count = lastResult.count;
+  if (!confirm('确定把账号 ' + accountId + ' 的 bot 好友 GID 配置\n整体替换为这 ' + count + ' 个（已过滤 Lv1）？\n原配置将被覆盖，且会同步到正在运行的 bot。')) {
+    return;
+  }
+  const gids = lastResult.friends.map((f) => String(f.gid));
+  const hideLv1 = $('hideLv1').checked;
+  const minKeepLevel = ($('minKeepLevel').value || '').trim();
+  const maxFilterLevel = ($('maxFilterLevel').value || '').trim();
+  $('btnReplace').disabled = true;
+  setStatus('写入中…', null);
+  try {
+    const res = await fetch('/api/friends/replace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId, gids, hideLv1,
+        ...(minKeepLevel !== '' ? { minKeepLevel: Number(minKeepLevel) } : {}),
+        ...(maxFilterLevel !== '' ? { maxFilterLevel: Number(maxFilterLevel) } : {}) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setStatus('写入失败：' + (data.error || res.status), false);
+      toast('写入失败：' + (data.error || res.status));
+      return;
+    }
+    setStatus('已替换', true);
+    toast('已写入 ' + data.written + ' 个，bot 现 ' + data.newCount + ' 个');
+    $('stat').innerHTML += ' · <b style="color:var(--green)">已写入 bot ' + data.newCount + ' 个</b>';
+  } catch (e) {
+    setStatus('网络错误', false);
+    toast('请求异常：' + e.message);
+  } finally {
+    $('btnReplace').disabled = false;
+  }
+}
+
+function getWxQr() {
+  const accountId = '3'; // 微信登录固定写回账号3（沉稳🛫），避免误填串号
+  if (wxPollTimer) { wxPollTimer = null; }
+  $('wxQrBox').style.display = 'block';
+  $('wxQrTip').textContent = '获取中…';
+  $('wxQrState').textContent = '';
+  $('btnWxQr').disabled = true;
+  const state = $('wxQrState');
+  const tip = $('wxQrTip');
+  const img = $('wxQrImg');
+  const btn = $('btnWxQr');
+  try {
+    fetch('/api/wx-login/qr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountId }) })
+      .then(r => r.json().catch(() => ({})))
+      .then(d => {
+        if (!d || !d.ok) { tip.textContent = '获取失败：' + (d && d.error || '未知'); btn.disabled = false; return; }
+        img.src = d.image || '';
+        tip.textContent = '用微信扫此码，扫完在手机点「确认登录」';
+        const taskId = d.taskId;
+        if (!taskId) { state.textContent = '（未拿到会话ID，请重试）'; btn.disabled = false; return; }
+        state.textContent = '二维码已生成，请用微信扫码（扫完在手机点「确认登录」）…';
+        let pollCount = 0;
+        const POLL_MAX = 50;
+        function nextPoll() {
+          if (wxPollTimer === null) return;
+          fetch('/api/wx-login/status?taskId=' + encodeURIComponent(taskId) + '&accountId=' + encodeURIComponent(accountId))
+            .then(pr => pr.json().catch(() => ({})))
+            .then(pd => {
+              if (!pd || !pd.ok) { state.textContent = '轮询失败：' + (pd && pd.error || '网络') + '（将重试）'; if (wxPollTimer !== null) setTimeout(nextPoll, 3000); return; }
+              pollCount++;
+              const st = pd.status;
+              if (st === 'authorized') {
+                wxPollTimer = null;
+                state.textContent = '已授权，正在确认并启动账号…';
+                fetch('/api/wx-login/confirm?taskId=' + encodeURIComponent(taskId) + '&accountId=' + encodeURIComponent(accountId), {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+                  .then(cr => cr.json().catch(() => ({})))
+                  .then(cd => {
+                    if (!cd || !cd.ok) {
+                      state.style.color = 'var(--red)';
+                      state.textContent = '确认未成功（' + (cd && cd.error || '失败') + '）。请重新点「获取微信登录二维码」再扫一次。';
+                      tip.textContent = '授权窗口已过，重新扫码即可';
+                      btn.disabled = false;
+                      return;
+                    }
+                    state.style.color = 'var(--green)';
+                    state.textContent = '登录成功，账号 ' + cd.accountId + ' 已启动';
+                    tip.textContent = '搞定，去 bot 看账号 ' + cd.accountId + ' 是否在线';
+                    btn.disabled = false;
+                  })
+                  .catch(e => { state.textContent = '确认异常：' + e.message; btn.disabled = false; });
+              } else if (st === 'scanned') {
+                state.textContent = '已扫码！请在手机上点「确认登录」…';
+                if (pollCount <= POLL_MAX && wxPollTimer !== null) setTimeout(nextPoll, 1000);
+              } else if (st === 'cancelled' || st === 'expired' || st === 'failed') {
+                wxPollTimer = null;
+                state.style.color = 'var(--red)';
+                state.textContent = '二维码已失效（' + st + '），请重新点「获取微信登录二维码」再扫。';
+                btn.disabled = false;
+              } else {
+                state.textContent = '等待微信扫码…（二维码有时效，超时请重新获取）';
+                if (pollCount <= POLL_MAX && wxPollTimer !== null) setTimeout(nextPoll, 3000);
+              }
+              if (pollCount > POLL_MAX && wxPollTimer !== null) {
+                wxPollTimer = null;
+                state.style.color = 'var(--red)';
+                state.textContent = '二维码可能已过期，请重新点「获取微信登录二维码」再扫一次。';
+                btn.disabled = false;
+              }
+            })
+            .catch(e => { state.textContent = '轮询异常：' + e.message + '（将重试）'; if (wxPollTimer !== null) setTimeout(nextPoll, 3000); });
+        }
+        wxPollTimer = 1;
+        nextPoll();
+      })
+      .catch(e => { tip.textContent = '请求异常：' + e.message; btn.disabled = false; });
+  } catch (e) {
+    tip.textContent = '请求异常：' + e.message;
+    btn.disabled = false;
+  }
+}
+
+$('btnFetch').addEventListener('click', fetchGids);
+$('btnSelectAll').addEventListener('click', selectAllCopy);
+$('btnReplace').addEventListener('click', replaceFriends);
+$('btnUnlock').addEventListener('click', unlockFriends);
+$('btnWxQr').addEventListener('click', getWxQr);
+setStatus('待操作', null);
+</script>
+</body>
+</html>

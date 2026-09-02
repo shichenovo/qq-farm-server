@@ -1,0 +1,19 @@
+# 依赖（部署时由 setup.sh 安装）
+**/node_modules/
+**/node_modules
+
+# 运行时数据 / 密钥（绝不提交）
+qq-farm-bot-3010/.env
+qq-farm-bot-3010/core/data/*.json
+**/.env
+*.log
+*.bak*
+*.bak.*
+
+# 用户下载目录内容（只保留占位）
+downloads/*
+!downloads/.gitkeep
+
+# 系统临时
+.DS_Store
+*.swp

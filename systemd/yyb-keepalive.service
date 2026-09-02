@@ -1,0 +1,8 @@
+[Unit]
+Description=YYB WeChat login_buffer keepalive (refresh every 30m)
+After=network.target yyb-go.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/yyb-go/yyb-keepalive.py
+# 放在 yyb-go 资源目录旁，便于管理

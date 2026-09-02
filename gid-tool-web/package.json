@@ -1,0 +1,10 @@
+{
+  "name": "napcat-code-web",
+  "version": "1.0.0",
+  "description": "扫码取 Code 网页 —— 经 Unix socket 代理 NapCat bridge 的独立工具",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}

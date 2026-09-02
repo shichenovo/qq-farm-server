@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package gamepb.paypb;
+
+service PayService {
+    rpc GetRechargeInfo(GetRechargeInfoRequest) returns (GetRechargeInfoReply);
+}
+
+message GetRechargeInfoRequest {
+    string source = 1; // Observed value: "MallUI".
+}
+
+message RechargeInfo {
+    int64 balance = 1; // Observed value: 1.
+    int64 field_3 = 3; // Observed value: 10; semantics unknown.
+}
+
+message GetRechargeInfoReply {
+    repeated RechargeInfo recharge_infos = 1;
+}
+
+message RechargeInfoNotify {
+    string transaction_id = 1;
+    string source = 2;
+}
