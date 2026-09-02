@@ -123,14 +123,15 @@ services:
     networks: [qqfarm-net]
     depends_on: [yyb-go]
 
-  # ---------- QQ 登录容器(NapCat) —— 需自备镜像 ----------
-  # 镜像 qq-farm-napcat:farm 无法从本仓库构建(缺 204MB QQ 二进制)。
-  # 获取方式二选一:
-  #   A. 从已有服务器导出: docker save qq-farm-napcat:farm -o napcat-farm.tar
-  #      再 docker load -i napcat-farm.tar
-  #   B. 自备 /opt/QQ 二进制后，用 docker/Dockerfile 构建
-  # 启用: docker compose --profile qq-login up -d
+  # ---------- QQ 登录容器(NapCat) ----------
+  # 基于官方底座 mlikiowa/napcat-docker 构建(自带 204MB QQ 二进制)，
+  # 再叠加本项目绑定版本的 NapCat 装载代码 + bridge。无需分发 1.36GB 私有镜像。
+  # 别人部署只需: docker compose --profile qq-login up -d
+  #   (首次会自动 pull 官方底座并构建薄层)
   napcat-farm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.napcat
     image: qq-farm-napcat:farm
     container_name: napcat-farm
     profiles: ["qq-login"]

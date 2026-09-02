@@ -48,26 +48,25 @@ docker compose up -d
 
 ## 三、QQ 登录容器（napcat-farm）
 
-镜像 `qq-farm-napcat:farm` **无法从本仓库构建**（内含 204MB 官方 QQ for Linux 二进制，不进 git）。二选一获取：
+QQ 登录镜像**不再需要你自备或分发**——它基于官方 NapCat 底座
+[`mlikiowa/napcat-docker`](https://hub.docker.com/r/mlikiowa/napcat-docker) 自动构建：
 
-**A. 从已有服务器导出（推荐，最稳）**
-```bash
-# 在已有服务器(如 103.117.137.115)上:
-docker save qq-farm-napcat:farm -o napcat-farm.tar
-# 拷贝到新服务器后:
-docker load -i napcat-farm.tar
-```
+- 官方底座**自带** 204MB 的 QQ for Linux 二进制 + 全套 Electron 依赖，别人部署时
+  `docker compose` 会自动 `pull` 这个公开镜像，**无需私有镜像、无需 1.36GB tar**；
+- 仓库里只额外提供**我们绑定版本的 NapCat 装载代码 + bridge**（`docker/napcat-loader/`、
+  `docker/napcat-bridge/` 等），构成一层很薄的构建层；
+- 农场授权依赖的具体 NapCat 版本与文件布局（`loadNapCat.js` / `wrapper.node` 注入）被完整保留。
 
-**B. 自备 QQ 二进制后构建**
-```bash
-# 把官方 QQ for Linux 放到 docker/qq-linux（或按 docker/Dockerfile 注释准备）
-docker compose build napcat-farm   # 见 docker/Dockerfile 说明
-```
-
-启用 QQ 登录容器：
+启用 QQ 登录容器（首次会自动拉官方底座并构建薄层）：
 ```bash
 docker compose --profile qq-login up -d
 ```
+
+> 构建细节见 `docker/Dockerfile.napcat`：多阶段注入 node 20，再 `COPY` 本项目
+> `napcat-loader` / `napcat-defaults` / `napcat-bridge` / `napcat-openauth` 进去。
+
+如果你已经有可用的旧镜像，也可以跳过构建、直接 `docker load -i napcat-farm.tar`
+（旧服务器上 `docker save qq-farm-napcat:farm -o napcat-farm.tar` 导出）。
 
 ## 四、验证
 

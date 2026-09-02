@@ -1,0 +1,57 @@
+# QQ Farm NapCat 镜像 —— 基于官方 NapCat 底座
+# ============================================================================
+# 关键改进（对比旧版）：不再需要 204MB 的 QQ for Linux 二进制进仓库/分发。
+#
+# 官方 mlikiowa/napcat-docker 镜像已经自带：
+#   - QQ for Linux 二进制 (/opt/QQ/qq, ~204MB)
+#   - 全套 Electron 运行依赖 (libnss3/libgbm1/Xvfb/中文字体 ...)
+#   - napcat 用户 + gosu
+# 我们只需在其上叠加【本项目绑定版本的 NapCat 装载代码 + bridge + openauth】，
+# 即可保留农场授权所需的具体 NapCat 版本与文件布局(loadNapCat.js / wrapper.node 注入)，
+# 同时彻底免去 1.36GB 自定义 tar。
+#
+# 部署时别人执行:
+#   docker compose --profile qq-login up -d
+# 会自动 pull 官方底座 (mlikiowa/napcat-docker) 并构建这一薄层，无需任何私有镜像。
+# ============================================================================
+
+# 官方底座是 ubuntu22.04，不带 node；我们的 bridge / NapCat loader 需要 node 20。
+# 多阶段复制 node 二进制，避免依赖外部 apt 源的稳定性。
+FROM node:20-bookworm AS nodebuild
+
+FROM mlikiowa/napcat-docker:latest
+
+# 注入 node 20(整目录覆盖 /usr/local，带入配套的 npm/npx/corepack，避免 npm 损坏)
+COPY --from=nodebuild /usr/local/ /usr/local/
+ENV PATH=/usr/local/bin:$PATH
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Asia/Shanghai \
+    DISPLAY=:1 \
+    NAPCAT_WORKDIR=/app/napcat-data \
+    NAPCAT_LAUNCH_MODE=process \
+    NAPCAT_LAUNCHER=/app/napcat/launch-qq.sh \
+    NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+
+WORKDIR /app
+
+# 本项目自带文件(覆盖官方自带的 NapCat.Shell，改用我们绑定版本的装载代码)
+COPY docker/napcat-loader/ /app/napcat/
+COPY docker/napcat-defaults/ /app/napcat-defaults/
+COPY docker/napcat-bridge/server.js /app/napcat-bridge/server.js
+COPY qq-farm-bot-3010/custom-modules/services/napcat-openauth.js /app/core/src/services/napcat-openauth.js
+COPY docker/napcat-entrypoint.sh /usr/local/bin/napcat-entrypoint.sh
+
+# NapCat 装载代码依赖安装(容器内 npm install，node_modules 不进仓库)
+# 同时在 /app 装 node-fetch：bridge 的 napcat-openauth.js 需要它
+# (node 全局 fetch 存在，但 openauth 显式 require('node-fetch'))。
+RUN chmod +x /usr/local/bin/napcat-entrypoint.sh /app/napcat/launch-qq.sh \
+ && mkdir -p /app/napcat-bridge /app/napcat-data \
+ && cd /app/napcat && (npm install --omit=dev >/dev/null 2>&1 || true) \
+ && cd /app && (npm install --omit=dev node-fetch >/dev/null 2>&1 || true)
+
+EXPOSE 6099 9700
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get({socketPath:process.env.NAPCAT_BRIDGE_SOCKET,path:'/health',timeout:4000},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+ENTRYPOINT ["bash", "/usr/local/bin/napcat-entrypoint.sh"]
