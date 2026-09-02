@@ -61,6 +61,21 @@ bash scripts/verify-deploy.sh
 
 ---
 
+## 快速部署（Docker，推荐，跨发行版）
+
+无需 systemd、无需手动 npm install，只要能跑 Docker 的 Linux x86-64：
+
+```bash
+cd docker
+cp .env.example .env      # 至少填 YYB_API_TOKEN
+docker compose up -d                 # 起 6 个非 QQ 服务
+docker compose --profile qq-login up -d   # 再带起 QQ 登录容器(需先准备镜像)
+```
+
+QQ 登录镜像 `qq-farm-napcat:farm` 无法从本仓库构建（缺 204MB 官方 QQ 二进制），需用 `docker save/load` 从已有服务器搬，或自备二进制后构建。详见 **[docs/DOCKER.md](docs/DOCKER.md)**。
+
+---
+
 ## NapCat 容器（QQ 登录必需）
 
 QQ 登录走 NapCat 容器，它提供 `bridge.sock` 给 Bot / 8088 / gid 工具通信。

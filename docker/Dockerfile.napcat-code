@@ -1,0 +1,8 @@
+# NapCat 扫码取 Code 网页 (8088)
+# 无第三方依赖，仅需 Node 内置模块
+FROM node:20-bookworm
+
+WORKDIR /app
+COPY . .
+EXPOSE 8088
+CMD ["node", "server.js"]

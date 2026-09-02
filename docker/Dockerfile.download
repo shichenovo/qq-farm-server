@@ -1,0 +1,9 @@
+# 静态下载服务 (8080)
+# 服务 /app/downloads 目录；如需自定义文件，运行前 bind 挂载宿主机目录到 /app/downloads
+FROM python:3-slim
+
+WORKDIR /app
+COPY . /app/downloads
+
+EXPOSE 8080
+CMD ["python3", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/app/downloads"]

@@ -1,0 +1,8 @@
+# GID 好友提取工具 (8099)
+# 无第三方依赖，仅需 Node 内置模块
+FROM node:20-bookworm
+
+WORKDIR /app
+COPY . .
+EXPOSE 8099
+CMD ["node", "server.js"]

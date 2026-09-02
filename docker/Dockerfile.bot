@@ -1,0 +1,16 @@
+# QQ Farm Bot 主程序镜像
+# 构建上下文: ../qq-farm-bot-3010  (即仓库 qq-farm-bot-3010/ 目录)
+FROM node:20-bookworm
+
+WORKDIR /app
+# 复制整个 qq-farm-bot-3010 (core/ web/ custom-modules/ package.json ...)
+COPY . .
+
+# 运行时依赖在 core/package.json，需在 core 目录安装
+WORKDIR /app/core
+RUN npm install --omit=dev
+
+# 运行时数据(账号/日志)由卷挂载到 /app/core/data
+WORKDIR /app/core
+EXPOSE 3010
+CMD ["node", "client.js"]

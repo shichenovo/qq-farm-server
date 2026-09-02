@@ -1,26 +1,156 @@
-# NapCat 容器编排（QQ 登录必需）
-# 构建: docker compose build
-# 启动: docker compose up -d
-# 注意: bridge socket 目录 /run/qqfarm-napcat-bridge 必须挂载到宿主机，
-#        bot(3010) / napcat-code-web(8088) / gid-tool-web(8099) 都靠它通信。
+# ============================================================
+# QQ Farm 全栈 Docker 编排
+# 运行: cd docker && cp .env.example .env && docker compose up -d
+# 仅起非 QQ 服务:        docker compose up -d
+# 连同 QQ 登录容器一起:   docker compose --profile qq-login up -d
+#
+# 说明:
+#  - bridge-socket 卷被 bot(3010)/gid(8099)/napcat-code(8088)/napcat-farm 共享，
+#    用于 unix socket 通信(QQ 登录桥接)。
+#  - qqfarm-data 卷持久化 bot 的账号与日志(含 accounts.json)。
+#  - napcat-farm(QQ 登录)镜像 qq-farm-napcat:farm 无法从本仓库构建
+#    (需 204MB 官方 QQ for Linux 二进制)，必须从已有服务器 docker save/load，
+#    或自备二进制后用 docker/Dockerfile 构建。置于 qq-login profile 下。
+# ============================================================
 
 services:
-  napcat-farm:
+  # ---------- 主程序: QQ Farm Bot 面板(3010) ----------
+  qq-farm-bot:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../qq-farm-bot-3010
+      dockerfile: ../docker/Dockerfile.bot
+    image: qq-farm-bot:latest
+    container_name: qq-farm-bot
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    environment:
+      - ADMIN_PORT=3010
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - NODE_ENV=production
+      - TZ=${TZ:-Asia/Shanghai}
+      - NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+      - YYB_API_URL=http://yyb-go:8450
+      - YYB_API_KEY=${YYB_API_TOKEN}
+      - YYB_API_TOKEN=${YYB_API_TOKEN}
+    volumes:
+      - bridge-socket:/run/qqfarm-napcat-bridge
+      - qqfarm-data:/app/core/data
+    networks: [qqfarm-net]
+
+  # ---------- GID 好友提取工具(8099) ----------
+  gid-tool-web:
+    build:
+      context: ../gid-tool-web
+      dockerfile: ../docker/Dockerfile.gid
+    image: gid-tool-web:latest
+    container_name: gid-tool-web
+    restart: unless-stopped
+    ports:
+      - "8099:8099"
+    environment:
+      - PORT=8099
+      - HOST=0.0.0.0
+      - NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+      - FARMBOT_ADMIN_URL=http://qq-farm-bot:3010
+      - FARMBOT_ADMIN_USER=${ADMIN_USER:-admin}
+      - FARMBOT_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - FARM_BOT_DIST=/app/core/dist
+      - YYB_API_KEY=${YYB_API_TOKEN}
+    volumes:
+      - bridge-socket:/run/qqfarm-napcat-bridge
+    networks: [qqfarm-net]
+
+  # ---------- NapCat 扫码取 Code 网页(8088) ----------
+  napcat-code-web:
+    build:
+      context: ../napcat-code-web
+      dockerfile: ../docker/Dockerfile.napcat-code
+    image: napcat-code-web:latest
+    container_name: napcat-code-web
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - PORT=8088
+      - HOST=0.0.0.0
+      - NAPCAT_BRIDGE_SOCKET=/run/qqfarm-napcat-bridge/bridge.sock
+      - NAPCAT_CODE_WEB_PASSWORD=${NAPCAT_CODE_WEB_PASSWORD:-q20947154}
+    volumes:
+      - bridge-socket:/run/qqfarm-napcat-bridge
+    networks: [qqfarm-net]
+
+  # ---------- 静态下载服务(8080) ----------
+  qq-farm-download:
+    build:
+      context: ../downloads
+      dockerfile: ../docker/Dockerfile.download
+    image: qq-farm-download:latest
+    container_name: qq-farm-download
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks: [qqfarm-net]
+
+  # ---------- YYB Go 微信换码服务(8450) ----------
+  yyb-go:
+    build:
+      context: ../yyb-go
+      dockerfile: ../docker/Dockerfile.yyb
+    image: yyb-go:latest
+    container_name: yyb-go
+    restart: unless-stopped
+    ports:
+      - "8450:8450"
+    environment:
+      - YYB_API_TOKEN=${YYB_API_TOKEN}
+    networks: [qqfarm-net]
+
+  # ---------- YYB 微信登录态保活(每 30 分钟) ----------
+  yyb-keepalive:
+    build:
+      context: ../yyb-go
+      dockerfile: ../docker/Dockerfile.keepalive
+    image: yyb-keepalive:latest
+    container_name: yyb-keepalive
+    restart: unless-stopped
+    environment:
+      - YYB_API_URL=http://yyb-go:8450
+      - YYB_API_TOKEN=${YYB_API_TOKEN}
+      - WX_APP_ID=wx5306c5978fdb76e4
+      - WX_OPENID=${WX_OPENID}
+    networks: [qqfarm-net]
+    depends_on: [yyb-go]
+
+  # ---------- QQ 登录容器(NapCat) —— 需自备镜像 ----------
+  # 镜像 qq-farm-napcat:farm 无法从本仓库构建(缺 204MB QQ 二进制)。
+  # 获取方式二选一:
+  #   A. 从已有服务器导出: docker save qq-farm-napcat:farm -o napcat-farm.tar
+  #      再 docker load -i napcat-farm.tar
+  #   B. 自备 /opt/QQ 二进制后，用 docker/Dockerfile 构建
+  # 启用: docker compose --profile qq-login up -d
+  napcat-farm:
     image: qq-farm-napcat:farm
     container_name: napcat-farm
+    profiles: ["qq-login"]
     restart: unless-stopped
     ports:
       - "6099:6099"
       - "9700:9700"
-    volumes:
-      - qq-farm-napcat-data:/app/napcat-data
-      - /run/qqfarm-napcat-bridge:/run/qqfarm-napcat-bridge
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ:-Asia/Shanghai}
       - DISPLAY=:1
+    volumes:
+      - bridge-socket:/run/qqfarm-napcat-bridge
+      - qq-farm-napcat-data:/app/napcat-data
+    networks: [qqfarm-net]
 
 volumes:
+  bridge-socket:
+  qqfarm-data:
   qq-farm-napcat-data:
+
+networks:
+  qqfarm-net:
+    driver: bridge

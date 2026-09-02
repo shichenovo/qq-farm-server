@@ -1,0 +1,9 @@
+# YYB 微信登录态保活 (每 30 分钟执行一次 yyb-keepalive.py)
+# 仅用 Python 标准库，无需 pip 安装
+FROM python:3-slim
+
+WORKDIR /app
+COPY yyb-keepalive.py /app/yyb-keepalive.py
+
+# 每 30 分钟触发一次 refresh；脚本失败不退出循环，下一轮继续
+CMD ["sh", "-c", "while true; do python3 /app/yyb-keepalive.py; echo \"[keepalive] 下次执行在 30 分钟后\"; sleep 1800; done"]

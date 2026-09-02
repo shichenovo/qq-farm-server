@@ -1,0 +1,15 @@
+# YYB Go 微信换码服务 (8450)
+# yyb-go 为预编译 amd64 静态二进制，需 ca-certificates 以访问外部 HTTPS 接口
+FROM debian:bookworm-slim
+
+WORKDIR /app
+COPY . .
+
+RUN chmod +x yyb-go \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# 监听 0.0.0.0 以便 compose 内其他容器访问(原 systemd 用 127.0.0.1)
+EXPOSE 8450
+CMD ["./yyb-go", "-host", "0.0.0.0", "-port", "8450", "-resource-root", "/app/resource"]
