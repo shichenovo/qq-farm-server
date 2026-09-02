@@ -67,17 +67,26 @@ QQ 登录走 NapCat 容器，它提供 `bridge.sock` 给 Bot / 8088 / gid 工具
 本仓库**不含可一键拉取的镜像**（镜像是本地基于官方 NapCat + 自定义桥接构建的，体积 1.3GB）。
 两种准备方式：
 
-**方式 A — 用本仓库 Dockerfile 自行构建**
+> ⚠️ **实测结论（2026-09-03）**：仓库里的 Dockerfile **不能凭空产出可运行的 QQ 登录镜像**。
+> 原因是生产镜像依赖两样无法进 git 的东西：(1) 官方 QQ for Linux 完整发行目录
+> `/opt/QQ`（约 204MB 二进制+资源）；(2) NapCat 装载代码（现已补齐在 `docker/napcat-loader/`）。
+> 因此**方案 A 仅在你自备 QQ 二进制时才可行**；对绝大多数“任意服务器”场景，
+> **请直接用方案 B 搬运现有镜像**，这是唯一经实测验证可行的 QQ 登录部署路径。
+
+**方式 A — 用本仓库 Dockerfile 自行构建（需自备 QQ 二进制）**
 ```bash
-docker compose -f docker/docker-compose.yml build
+# 1) 下载官方 QQ for Linux，把其完整安装目录放到构建上下文 ./docker/qq-linux/
+#    （内含 qq 二进制、resources/、chrome-sandbox 等，对应生产镜像的 /opt/QQ）
+# 2) 构建并启动
+docker build -f docker/Dockerfile . -t qq-farm-napcat:farm
 docker compose -f docker/docker-compose.yml up -d
 ```
-> 构建基于 `node:20-bookworm` + 官方 NapCat + 本项目 `docker/napcat-bridge` 自定义桥接。
-> 若你的环境无法拉取官方 NapCat 依赖，请自备 `/opt/QQ` 构建上下文。
+> 构建基于 `node:20-bookworm` + 本项目 `docker/napcat-bridge` 桥接 + `docker/napcat-loader` 装载代码。
+> **缺少 `./docker/qq-linux/` 时镜像虽能构建，但 QQ 无法启动**（这是预期行为，不是 bug）。
 
-**方式 B — 从已有服务器导出镜像**
+**方式 B — 从已有服务器导出镜像（推荐，实测可行）**
 ```bash
-# 在旧服务器上:
+# 在旧服务器(103.117.137.115)上:
 docker save qq-farm-napcat:farm -o napcat-farm.tar
 # 在新服务器上:
 docker load -i napcat-farm.tar

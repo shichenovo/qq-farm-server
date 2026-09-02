@@ -1,0 +1,56 @@
+{
+  "name": "qq-farm-bot",
+  "version": "20260902",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "client.js",
+  "bin": "client.js",
+  "scripts": {
+    "start": "node client.js",
+    "dev": "tsx client.ts",
+    "build": "tsc && tsc -p tsconfig.client.json",
+    "build:ts": "tsc && tsc -p tsconfig.client.json",
+    "typecheck": "tsc --noEmit",
+    "build:release": "tsc && tsc -p tsconfig.client.json && pkg . --no-bytecode --targets node18-win-x64,node18-linux-x64,node18-macos-x64,node18-macos-arm64 --out-path dist/bin",
+    "build:win": "tsc && tsc -p tsconfig.client.json && pkg . --no-bytecode --targets node18-win-x64 --out-path dist/bin",
+    "build:linux": "tsc && tsc -p tsconfig.client.json && pkg . --no-bytecode --targets node18-linux-x64 --out-path dist/bin",
+    "build:mac": "tsc && tsc -p tsconfig.client.json && pkg . --no-bytecode --targets node18-macos-x64,node18-macos-arm64 --out-path dist/bin",
+    "lint": "eslint . --fix",
+    "test": "pnpm run build:ts && node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.21.0",
+    "long": "^5.3.2",
+    "node-fetch": "^2.7.0",
+    "protobufjs": "^8.0.0",
+    "pushoo": "^0.1.11",
+    "socket.io": "^4.8.3",
+    "winston": "^3.18.3",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.4.3",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "@types/ws": "^8.18.1",
+    "eslint": "^9.39.1",
+    "pkg": "^5.8.1",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3"
+  },
+  "pkg": {
+    "assets": [
+      "../web/dist/**/*",
+      "dist/gameConfig/**/*",
+      "dist/proto/**/*",
+      "dist/activity-data/**/*",
+      "src/gameConfig/**/*",
+      "src/proto/**/*",
+      "src/activity-data/**/*",
+      "src/utils/tsdk.wasm"
+    ]
+  }
+}
