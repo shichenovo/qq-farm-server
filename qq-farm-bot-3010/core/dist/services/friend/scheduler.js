@@ -309,14 +309,7 @@ async function checkFriends(options = {}) {
         }
         if (plan.visits.length === 0)
             return false;
-        log('好友', `开始好友巡查，本轮 ${plan.visits.length} 位（可偷 ${plan.stealCount} / 需帮 ${plan.helpCount} / 纯捣乱 ${plan.badOnlyCount}）`, {
-            module: 'friend',
-            event: '开始好友巡查',
-            count: plan.visits.length,
-            steal: plan.stealCount,
-            help: plan.helpCount,
-            bad: plan.badOnlyCount,
-        });
+        // [2026-09-04 按需] 移除“开始好友巡查”日志避免每轮刷屏；有动作的轮次仍会输出“巡查完成 → …”总结
         // 经验在本轮中途满掉之后被跳过的好友数
         let midRoundExpSkipped = 0;
         for (const target of plan.visits) {

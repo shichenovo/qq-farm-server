@@ -7,6 +7,7 @@ const { sendMsgAsync } = require('../utils/network');
 const { types } = require('../utils/proto');
 const { log, toNum, getSystemDateKey } = require('../utils/utils');
 const DAILY_KEY = 'email_rewards';
+let emailNoneLogged = false; // [2026-09-04] 每次进程(登录)仅提示一次“无奖励”
 let doneDateKey = '';
 let lastCheckAt = 0;
 const CHECK_COOLDOWN_MS = 5 * 60 * 1000;
@@ -86,11 +87,14 @@ async function checkAndClaimEmails(force = false) {
         const claimable = collectClaimableEmails({ emails: [...fromBox1, ...fromBox2] });
         if (claimable.length === 0) {
             markDoneToday();
-            log('邮箱', '当前暂无可领取邮箱奖励', {
-                module: 'task',
-                event: DAILY_KEY,
-                result: 'none',
-            });
+            if (!emailNoneLogged) {
+                emailNoneLogged = true;
+                log('邮箱', '当前暂无可领取邮箱奖励', {
+                    module: 'task',
+                    event: DAILY_KEY,
+                    result: 'none',
+                });
+            }
             return { claimed: 0, rewardItems: 0 };
         }
         const rewards = [];
