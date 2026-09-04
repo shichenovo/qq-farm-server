@@ -10,6 +10,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const crypto = require('node:crypto');
 
 const PORT = Number(process.env.PORT) || 8099;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -31,6 +32,79 @@ const MIME = {
 function sendJson(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(typeof obj === 'string' ? obj : JSON.stringify(obj));
+}
+
+// ===== Cookie 会话 + HTML 登录对话框（对齐 8088：nccw 同款交互）=====
+const SESSION_COOKIE = 'gtw_sid';
+const SESSION_TTL = 1000 * 60 * 60 * 12; // 12 小时
+const sessions = new Map(); // token -> expiry(ms)
+
+const LOGIN_HTML = `<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>好友 GID 提取工具 · 访问控制</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% -10%,#1e2b4d,#0b1020);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;color:#e8edf7}
+  .card{width:340px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:16px;padding:28px 26px;backdrop-filter:blur(10px);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  h1{margin:0 0 4px;font-size:18px;font-weight:650}
+  .sub{margin:0 0 20px;font-size:13px;color:#9fb0d0}
+  label{display:block;font-size:12px;color:#9fb0d0;margin-bottom:6px}
+  input{width:100%;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.16);
+    background:rgba(0,0,0,.25);color:#fff;font-size:14px;outline:none}
+  input:focus{border-color:#5b8cff}
+  button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:10px;cursor:pointer;
+    background:linear-gradient(135deg,#5b8cff,#7b5bff);color:#fff;font-size:15px;font-weight:600}
+  button:disabled{opacity:.6;cursor:default}
+  .err{margin-top:12px;font-size:13px;color:#ff7b7b;min-height:18px}
+</style>
+</head>
+<body>
+  <form class="card" id="form">
+    <h1>好友 GID 提取工具</h1>
+    <p class="sub">请输入访问密码以继续</p>
+    <label for="pwd">访问密码</label>
+    <input id="pwd" type="password" autocomplete="current-password" placeholder="请输入密码" autofocus/>
+    <button id="btn" type="submit">验 证</button>
+    <div class="err" id="err"></div>
+  </form>
+<script>
+  const form=document.getElementById('form'),pwd=document.getElementById('pwd'),
+    btn=document.getElementById('btn'),err=document.getElementById('err');
+  form.addEventListener('submit',async e=>{
+    e.preventDefault(); err.textContent=''; btn.disabled=true; btn.textContent='验证中…';
+    try{
+      const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({password:pwd.value})});
+      const data=await r.json().catch(()=>({}));
+      if(r.ok&&data.ok){ location.href='/'; }
+      else { err.textContent=data.error||'密码错误'; btn.disabled=false; btn.textContent='验 证'; }
+    }catch(e){ err.textContent='网络错误，请重试'; btn.disabled=false; btn.textContent='验 证'; }
+  });
+</script>
+</body>
+</html>`;
+
+function isAuthed(req) {
+  if (!PASSWORD) return true;
+  const m = (req.headers.cookie || '').match(new RegExp(SESSION_COOKIE + '=([0-9a-f]{48})'));
+  if (!m) return false;
+  const exp = sessions.get(m[1]);
+  if (!exp) return false;
+  if (exp < Date.now()) { sessions.delete(m[1]); return false; }
+  sessions.set(m[1], Date.now() + SESSION_TTL); // 续期
+  return true;
+}
+
+function setAuthCookie(res) {
+  const tok = crypto.randomBytes(24).toString('hex');
+  sessions.set(tok, Date.now() + SESSION_TTL);
+  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${tok}; HttpOnly; Path=/; Max-Age=${Math.floor(SESSION_TTL / 1000)}; SameSite=Lax`);
 }
 
 function authorized(req) {
@@ -103,7 +177,7 @@ function proxyBridge(req, res) {
 // /api/friends 解析出 {gid,name,...}。本模块只做「带 token 转发 + 登录复用」。
 const FARMBOT_ADMIN_URL = process.env.FARMBOT_ADMIN_URL || 'http://127.0.0.1:3010';
 const FARMBOT_ADMIN_USER = process.env.FARMBOT_ADMIN_USER || 'admin';
-const FARMBOT_ADMIN_PASSWORD = process.env.FARMBOT_ADMIN_PASSWORD || 'admin';
+const FARMBOT_ADMIN_PASSWORD = process.env.FARMBOT_ADMIN_PASSWORD || 'q20947154';
 const FARMBOT_ACCOUNT_ID = process.env.FARMBOT_ACCOUNT_ID || '1';
 let farmbotToken = '';
 
@@ -331,7 +405,7 @@ function handleUnlockFriends(req, res) {
 // 走 yyb-go 的 /qr 体系：扫码确认后 login_buffer 写回 yyb.db(alive)，
 // 之后 bot 的 worker 会自动向 yyb-go 换码，账号3(loginType:yyb) 自动上线。
 const YYB_API_URL = process.env.YYB_API_URL || 'http://127.0.0.1:8450';
-const YYB_API_KEY = process.env.YYB_API_KEY || 'REPLACE_WITH_YOUR_YYB_TOKEN';
+const YYB_API_KEY = process.env.YYB_API_KEY || 'b019d35100724c85ac48887c59381d30';
 const YYB_WX_APP_ID = process.env.YYB_WX_APP_ID || 'wx5306c5978fdb76e4';
 
 function yybRequest(apiPath, method, bodyObj, timeoutMs) {
@@ -559,11 +633,32 @@ function toLv(f) {
   return isNaN(n) ? 0 : n;
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/healthz') return sendJson(res, 200, { ok: true });
-  if (!authorized(req))
+  // ===== 认证：Cookie 会话优先，兼容 x-auth-pwd / ?pwd=；页面未认证返回 HTML 登录框 =====
+  if (PASSWORD && !isAuthed(req) && !authorized(req)) {
+    if (url.pathname === '/login') {
+      if (req.method !== 'POST') {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(LOGIN_HTML);
+      }
+      let pwOk = false;
+      try {
+        const b = JSON.parse((await readBody(req)) || '{}');
+        pwOk = String(b.password || '') === PASSWORD;
+      } catch (e) { pwOk = false; }
+      if (pwOk) { setAuthCookie(res); return sendJson(res, 200, { ok: true }); }
+      return sendJson(res, 401, { ok: false, error: '密码错误' });
+    }
+    const accept = String(req.headers.accept || '');
+    const isPage = !url.pathname.startsWith('/api') && (accept.includes('text/html') || url.pathname === '/' || url.pathname.endsWith('.html'));
+    if (isPage) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(LOGIN_HTML);
+    }
     return sendJson(res, 403, { ok: false, error: '需要密码', needAuth: true });
+  }
   if (url.pathname.startsWith('/api/bridge')) return proxyBridge(req, res);
   if (url.pathname.startsWith('/api/farmbot')) return proxyFarmbot(req, res);
   if (url.pathname === '/api/friends') return handleGetFriends(req, res);

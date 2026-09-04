@@ -305,13 +305,7 @@ async function checkFriends(options = {}) {
         });
         const totalActions = { steal: 0, farming: 0, putBug: 0, putWeed: 0 };
         if (plan.skippedExpLimit > 0) {
-            log('好友', `经验已达上限，本轮跳过 ${plan.skippedExpLimit} 位非护主犬好友（未进农场，其中 ${plan.skippedUnknownDog} 位宠物待同步）`, {
-                module: 'friend',
-                event: '好友巡查跳过',
-                reason: 'protect_dog_cache_filtered',
-                count: plan.skippedExpLimit,
-                unknownDog: plan.skippedUnknownDog,
-            });
+            // [2026-09-04 按需] 前端不再展示该条“经验已达上限跳过”汇总噪音
         }
         if (plan.visits.length === 0)
             return false;
@@ -360,9 +354,7 @@ async function checkFriends(options = {}) {
                 await randomDelay(500, 800);
         }
         if (midRoundExpSkipped > 0) {
-            log('好友', `本轮帮助经验在中途达到上限，跳过剩余 ${midRoundExpSkipped} 位非护主犬好友`, {
-                module: 'friend', event: '好友巡查跳过', reason: 'exp_limit', count: midRoundExpSkipped,
-            });
+            // [2026-09-04 按需] 前端不再展示该条“中途经验上限跳过”汇总噪音
         }
         // 偷菜后自动出售
         if (totalActions.steal > 0) {
