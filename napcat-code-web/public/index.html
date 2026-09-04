@@ -174,6 +174,20 @@
   .code-text { min-height: 56px; line-height: 1.5; }
   .code-text:focus { outline: none; border-color: var(--cyan); }
   .code-text::placeholder { color: #475569; }
+
+  /* ---- 好友 GID 提取 ---- */
+  .gid-box { max-height: 280px; overflow-y: auto; margin-top: 6px; border-radius: 10px; background: rgba(15,23,42,0.35); }
+  .gid-box::-webkit-scrollbar { width: 4px; }
+  .gid-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  .gid-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid rgba(148,163,184,0.1); font-size: 13px; }
+  .gid-item:last-child { border-bottom: 0; }
+  .gid-item .g { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--cyan, #22d3ee); flex: 0 0 auto; }
+  .gid-item .n { color: #cbd5e1; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gid-item .l { color: #64748b; font-size: 12px; flex: 0 0 auto; }
+  .gid-empty { color: #64748b; font-size: 13px; padding: 16px 4px; text-align: center; }
+  .gid-text { width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: rgba(15,23,42,0.5); color: #e2e8f0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; resize: vertical; min-height: 70px; max-height: 200px; overflow-y: auto; box-sizing: border-box; }
+  .gid-text:focus { outline: none; border-color: var(--cyan, #22d3ee); }
+  .gid-actions { display: flex; gap: 8px; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -216,6 +230,17 @@
     <p class="code-tip">一次性授权码，请尽快回填到农场bot 账号的 code 字段。可点「全选授权码」或直接长按文本框复制。</p>
     <button class="btn full" id="copyBtn">全选授权码</button>
   </section>
+    <section class="card" id="gidCard" style="display:none">
+      <div class="card-head"><span class="icon">👥</span>好友 GID（用 Code 直连网关提取）</div>
+      <div class="gid-box" id="gidBox"><div class="gid-empty">取到授权码后，点下方按钮提取该 QQ 的全部游戏好友 GID。</div></div>
+      <textarea id="gidText" class="gid-text" readonly placeholder="提取后显示逗号分隔的 GID，可直接复制回填到农场 bot"></textarea>
+      <div class="gid-actions">
+        <button class="btn" id="scanGidsBtn"><span class="icon">⚡</span>提取全部好友 GID</button>
+        <button class="btn" id="copyGidBtn">全选 GID</button>
+      </div>
+      <p class="code-tip">注意：会用当前授权码登录一次网关（该码会被消耗，且可能挤掉同账号的其他在线会话）。</p>
+    </section>
+
 
   <section class="card log-card">
     <div class="card-head">
@@ -315,7 +340,7 @@ async function api(method, path, body) {
   const res = await fetch('/api/bridge' + path, opt);
   let data = null;
   try { data = await res.json(); } catch (e) { data = { ok: false, error: '响应解析失败' }; }
-  if (res.status === 403 && data && data.needAuth) { showPwModal(); throw new Error('NEED_AUTH'); }
+  if (res.status === 403 && data && data.needAuth) { location.href = '/'; throw new Error('NEED_AUTH'); }
   return { status: res.status, data };
 }
 
@@ -363,6 +388,7 @@ function resetUI() {
   setConn('未连接', 'red');
   $('footText').textContent = '等待扫码';
   $('codeCard').style.display = 'none';
+    var _gc = $('gidCard'); if (_gc) _gc.style.display = 'none';
   $('codeVal').value = '—';
 }
 
@@ -376,6 +402,7 @@ async function endQrSession(reason, keepCode) {
   await releaseQuiet();
   if (!keepCode) {
     $('codeCard').style.display = 'none';
+    var _gc = $('gidCard'); if (_gc) _gc.style.display = 'none';
     $('codeVal').value = '—';
   }
   setConn(keepCode ? '授权码已获取' : '二维码已失效', keepCode ? 'green' : 'red');
@@ -481,6 +508,7 @@ async function autoGetCode() {
     const uin = (d.profile && d.profile.uin) || '';
     $('codeVal').value = code;
     $('codeCard').style.display = 'block';
+    var _gc = $('gidCard'); if (_gc) _gc.style.display = 'block';
     log('ok', '授权码获取成功' + (uin ? '（QQ ' + uin + '）' : ''));
     // 取完授权码后释放扫码通道并退出本次扫码 QQ 实例，保留授权码卡片
     await endQrSession('授权码已获取', true);
@@ -542,19 +570,96 @@ $('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('pwOk
 /* init */
 log('muted', '系统就绪，等待操作…');
 log('info', '系统初始化完成（扫码取授权码版）');
-showPwModal();
+// 认证已移至服务端整页登录页（Cookie 会话），移除前端强制弹窗
 // 默认停在占位：不自动拉起扫码实例，校验通过后由用户点“刷新二维码”开始
+
+// ===== 好友 GID 提取（用一次性 Code 直连网关）=====
+let currentGids = [];
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function renderGids(list) {
+  const seen = new Set();
+  const out = [];
+  for (const f of (list || [])) {
+    const gid = Number(f && f.gid) || 0;
+    if (gid > 0 && !seen.has(gid)) { seen.add(gid); out.push(f); }
+  }
+  currentGids = out;
+  const box = document.getElementById('gidBox');
+  const text = document.getElementById('gidText');
+  if (!out.length) {
+    box.innerHTML = '<div class="gid-empty">未提取到好友 GID</div>';
+    text.value = '';
+    return;
+  }
+  box.innerHTML = out.map((f) => {
+    const gid = Number(f.gid);
+    const name = f.name || f.nick || f.remark || '';
+    const lv = (f.level != null && f.level !== '') ? ('Lv' + f.level) : '';
+    return '<div class="gid-item"><span class="g">' + gid + '</span><span class="n">' + escapeHtml(name) + '</span><span class="l">' + escapeHtml(lv) + '</span></div>';
+  }).join('');
+  text.value = out.map((f) => f.gid).join(',');
+}
+async function fetchScanGids(code) {
+  if (!code) { log('err', '缺少授权码，无法提取好友 GID'); return; }
+  const btn = document.getElementById('scanGidsBtn');
+  const old = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="icon">⏳</span>正在直连网关…'; }
+  log('info', '正在用授权码直连游戏网关，提取该 QQ 的全部好友 GID…');
+  try {
+    const res = await fetch('/api/scan-gids', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = { ok: false, error: '响应解析失败' }; }
+    if (!data || !data.ok) {
+      log('err', '提取失败：' + ((data && data.error) || '未知错误'));
+      document.getElementById('gidBox').innerHTML = '<div class="gid-empty">提取失败：' + escapeHtml((data && data.error) || '未知错误') + '</div>';
+      document.getElementById('gidText').value = '';
+      return;
+    }
+    renderGids(data.friends || []);
+    const d = data.debug || {};
+    let msg = '已提取好友 GID 共 ' + currentGids.length + ' 个';
+    if (d.syncAllMutual != null || d.getGameFriends != null) {
+      msg += '（SyncAll 候选：互加=' + (d.syncAllMutual == null ? '—' : d.syncAllMutual) +
+             ' 推荐=' + (d.syncAllRecommended == null ? '—' : d.syncAllRecommended) +
+             ' → GetGameFriends 命中=' + (d.getGameFriends == null ? '—' : d.getGameFriends) + '）';
+    }
+    log('ok', msg);
+  } catch (e) {
+    log('err', '提取错误：' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = old; }
+  }
+}
+
 (async function init() {
   const pw = getPw();
   const probe = (hd) => fetch('/api/bridge/health', hd ? { headers: { 'x-auth-pwd': pw } } : {});
   try {
     const r = await probe(pw);
-    if (r.status === 403) { showPwModal(); return; }
+    if (r.status === 403) { location.href = '/'; return; }
     $('pwModal').classList.remove('show');
     log('info', '已连接到扫码服务，点击“刷新二维码”开始');
   } catch (e) {
     log('err', '无法连接到服务：' + e.message);
   }
+})();
+
+// GID 提取按钮
+(function () {
+  var b = document.getElementById('scanGidsBtn');
+  var c = document.getElementById('copyGidBtn');
+  if (b) b.addEventListener('click', function () {
+    var v = (document.getElementById('codeVal') || {}).value || '';
+    fetchScanGids(v.trim());
+  });
+  if (c) c.addEventListener('click', function () {
+    var t = document.getElementById('gidText');
+    if (!t || !t.value) return;
+    t.select(); t.setSelectionRange(0, 999999);
+    try { document.execCommand('copy'); log('ok', 'GID 已复制'); } catch (e) {}
+  });
 })();
 </script>
 </body>

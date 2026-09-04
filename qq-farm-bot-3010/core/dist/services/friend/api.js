@@ -225,10 +225,22 @@ async function stealHarvest(friendGid, landIds) {
         host_gid: toLong(friendGid),
         is_all: true,
     })).finish();
-    const { body: replyBody } = await sendMsgAsync('gamepb.plantpb.PlantService', 'Harvest', body);
-    const reply = types.HarvestReply.decode(replyBody);
-    schedulerRef().updateOperationLimits(reply.operation_limits);
-    return reply;
+    try {
+        // 1001040 = 果实已被摘走 / 1001057 = 无成熟果实可收获：这都是“没偷到”的正常业务结果，
+        // 不是故障。登记为预期错误码以抑制 network 层的「错误」级刷屏，再在 catch 里静默成软失败返回。
+        const { body: replyBody } = await sendMsgAsync('gamepb.plantpb.PlantService', 'Harvest', body, {
+            expectedErrorCodes: [1001040, 1001057],
+        });
+        const reply = types.HarvestReply.decode(replyBody);
+        schedulerRef().updateOperationLimits(reply.operation_limits);
+        return reply;
+    }
+    catch (e) {
+        if (e instanceof GatewayError && (e.code === 1001040 || e.code === 1001057)) {
+            return { code: e.code, error_message: e.errorMessage, land: [], operation_limits: [] };
+        }
+        throw e;
+    }
 }
 async function putPlantItems(friendGid, landIds, RequestType, ReplyType, method) {
     const result = await putPlantItemsDetailed(friendGid, landIds, RequestType, ReplyType, method);

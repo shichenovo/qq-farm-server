@@ -9,6 +9,7 @@ const store = require('../../models/store');
 const { createAuthRequired, getAccId, handleApiError, resolveAccId, } = require('./middleware');
 function mountFarmRoutes(app, ctx) {
     const authRequired = createAuthRequired(ctx);
+    const lastKnownLevelExp = new Map();
     // API: 完整状态
     app.get('/api/status', async (req, res) => {
         const id = getAccId(ctx, req);
@@ -17,9 +18,22 @@ function mountFarmRoutes(app, ctx) {
         try {
             const data = ctx.provider.getStatus(id);
             if (data && data.status) {
-                const { level, exp } = data.status;
-                const progress = getLevelExpProgress(level, exp);
-                data.levelProgress = progress;
+                let level = Number(data.status.level) || 0;
+                let exp = Number(data.status.exp) || 0;
+                const cached = lastKnownLevelExp.get(id);
+                if (level > 0) {
+                    lastKnownLevelExp.set(id, { level: level, exp: exp });
+                    data.levelProgress = getLevelExpProgress(level, exp);
+                    data.levelProgressStale = false;
+                }
+                else if (cached) {
+                    data.levelProgress = getLevelExpProgress(cached.level, cached.exp);
+                    data.levelProgressStale = true;
+                }
+                else {
+                    data.levelProgress = getLevelExpProgress(level, exp);
+                    data.levelProgressStale = false;
+                }
             }
             res.json({ ok: true, data });
         }

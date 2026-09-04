@@ -63,6 +63,7 @@ const initialState = {
     coupon: null,
 };
 const session = {
+    startedAt: 0,
     goldGained: 0,
     expGained: 0,
     couponGained: 0,
@@ -125,6 +126,7 @@ function initStats(gold, exp, coupon = 0) {
 }
 function initStatsWithPersistence(accountId, gold, exp, coupon = 0) {
     currentAccountId = accountId;
+    session.startedAt = Date.now();
     const todayKey = getTodayKey();
     currentDateKey = todayKey;
     const saved = loadPersistedStats(accountId);
@@ -183,6 +185,7 @@ function setInitialValues(gold, exp, coupon = 0) {
     initStats(gold, exp, coupon);
 }
 function resetSessionGains() {
+    session.startedAt = Date.now();
     session.goldGained = 0;
     session.expGained = 0;
     session.couponGained = 0;
@@ -230,6 +233,7 @@ function getStats(statusData, userState, connected, limits) {
             avatarUrl: String(userObj.avatarUrl || statusObj.avatarUrl || '').trim(),
         },
         uptime: process.uptime(),
+        sessionUptime: session.startedAt ? (Date.now() - session.startedAt) / 1000 : 0,
         operations: operationsSnapshot,
         sessionExpGained: session.expGained,
         sessionGoldGained: session.goldGained,
