@@ -435,7 +435,7 @@ function handleMessage(data) {
             const pending = pendingCallbacks.get(clientSeqVal);
             const expectedError = !!pending && pending.expectedErrorCodes.has(errorCode);
             if (errorCode !== 0 && !expectedError) {
-                logWarn('错误', `${meta.service_name}.${meta.method_name} code=${errorCode} ${meta.error_message || ''}`);
+                logWarn('错误', meta.error_message || (errorCode ? `code=${errorCode}` : '请求失败')); // [2026-09-04] 仅显示文案，不再带 service.method 前缀
             }
             if (pending) {
                 pendingCallbacks.delete(clientSeqVal);

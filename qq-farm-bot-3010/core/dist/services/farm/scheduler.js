@@ -380,9 +380,7 @@ function onLandsChangedPush(lands) {
     if (now - lastPushTime < 500)
         return;
     lastPushTime = now;
-    log('农场', `收到推送: ${lands.length}块土地变化，检查中...`, {
-        module: 'farm', event: '土地推送通知', result: 'trigger_check', count: lands.length
-    });
+    // [2026-09-04 按需] 移除“收到推送: N块土地变化”刷屏日志；保留下方延迟检查
     farmScheduler.setTimeoutTask('farm_push_check', 100, async () => {
         if (!isCheckingFarm)
             await checkFarm();
